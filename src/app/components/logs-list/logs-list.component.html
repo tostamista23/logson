@@ -1,0 +1,176 @@
+<div class="space-y-4">
+  <!-- Update Notification -->
+  <div *ngIf="showUpdateNotification" class="bg-green-900 border border-green-700 rounded-lg p-4 text-green-200 flex items-center justify-between">
+    <span>✓ {{ newLogsCount }} new log{{ newLogsCount !== 1 ? 's' : '' }} detected!</span>
+    <button (click)="showUpdateNotification = false" class="text-green-300 hover:text-green-100">×</button>
+  </div>
+
+  <!-- Search Bar -->
+  <div class="flex gap-3 mb-4">
+    <input 
+      [(ngModel)]="searchTerm"
+      (ngModelChange)="onSearchChange()"
+      type="text"
+      placeholder="Search logs by message, type, level..."
+      class="flex-1 px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition">
+    <button 
+      *ngIf="searchTerm"
+      (click)="clearSearch()"
+      class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition">
+      Clear
+    </button>
+  </div>
+
+  <!-- Search Results Info -->
+  <div *ngIf="searchTerm" class="text-sm text-gray-400 mb-2">
+    Found {{ filteredLogs.length }} of {{ logs.length }} entries
+  </div>
+
+  <!-- Pagination Info -->
+  <div class="flex justify-between items-center text-sm text-gray-400 mb-4">
+    <span>Showing {{ startIndex + 1 }} to {{ endIndex }} of {{ filteredLogs.length }}</span>
+    <span>Page {{ currentPage }} of {{ totalPages }}</span>
+  </div>
+
+  <!-- Logs Table -->
+  <div class="overflow-x-auto rounded-lg border border-gray-700">
+    <table class="w-full text-sm">
+      <thead>
+        <tr class="bg-gray-900 border-b border-gray-700">
+          <th class="text-left px-4 py-3 text-gray-300 font-semibold">Timestamp</th>
+          <th class="text-left px-4 py-3 text-gray-300 font-semibold w-20">Level</th>
+          <th class="text-left px-4 py-3 text-gray-300 font-semibold w-24">Type</th>
+          <th class="text-left px-4 py-3 text-gray-300 font-semibold">Message</th>
+          <th class="text-left px-4 py-3 text-gray-300 font-semibold"></th>
+        </tr>
+      </thead>
+      <tbody class="divide-y divide-gray-700">
+        <tr *ngFor="let log of paginatedLogs; let i = index" 
+          class="hover:bg-gray-700 hover:bg-opacity-50 transition relative">
+          <td class="px-4 py-3 text-gray-300 font-mono text-xs whitespace-nowrap">
+            <div class="flex items-center gap-2">
+              {{ log.formattedDate }}
+              <span *ngIf="isNewLog(log)" class="px-2 py-0.5 bg-green-600 text-white rounded text-xs font-bold whitespace-nowrap">
+                NEW
+              </span>
+            </div>
+          </td>
+          <td class="px-4 py-3">
+            <span [class]="log.levelClass" class="px-2 py-1 rounded text-xs font-semibold whitespace-nowrap inline-block">
+              {{ log.level }}
+            </span>
+          </td>
+          <td class="px-4 py-3">
+            <span [class]="log.typeClass" class="px-3 py-1 rounded-full text-xs font-semibold whitespace-nowrap inline-block">
+              {{ log.type }}
+            </span>
+          </td>
+          <td class="px-4 py-3">
+            <div class="text-sm text-gray-300 break-words max-w-4xl flex items-start gap-2">
+              <div *ngIf="log.httpMethod && log.statusCode" class="flex flex-col gap-1 flex-shrink-0 mt-0.5">
+                <span [class]="log.httpMethodClass" class="px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">
+                  {{ log.httpMethod }}
+                </span>
+                <span [class]="log.statusCodeClass" class="px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap">
+                  {{ log.statusCode }}
+                </span>
+              </div>
+              <div *ngIf="!(log.httpMethod && log.statusCode)" class="flex gap-2">
+                <span *ngIf="log.httpMethod" [class]="log.httpMethodClass" class="px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap flex-shrink-0 mt-0.5">
+                  {{ log.httpMethod }}
+                </span>
+                <span *ngIf="log.statusCode" [class]="log.statusCodeClass" class="px-2 py-0.5 rounded text-xs font-bold whitespace-nowrap flex-shrink-0 mt-0.5">
+                  {{ log.statusCode }}
+                </span>
+              </div>
+              <div *ngIf="log.sqlFormatted" class="flex-1 flex flex-col gap-2">
+                <div *ngIf="log.requestPath" class="text-xs text-gray-400 px-2 py-1 bg-gray-900 rounded">
+                  <span class="font-semibold text-gray-300">Endpoint request:</span> {{ log.requestPath }}
+                </div>
+                <div class="text-xs text-gray-300 flex items-center gap-2">
+                  <div class="flex-1" [innerHTML]="getSqlWithHighlight(log.sqlFormatted)"></div>
+                  <button 
+                    *ngIf="log.sql"
+                    (click)="openSqlModal(log.sql)"
+                    class="px-2 py-1 bg-gray-700 hover:bg-gray-600 text-gray-300 rounded text-xs whitespace-nowrap flex-shrink-0">
+                    View SQL
+                  </button>
+                </div>
+              </div>
+              <span *ngIf="!log.sqlFormatted">{{ log.message }}</span>
+            </div>
+          </td>
+          <!-- Connector Column at End -->
+          <td class="px-2 py-3 w-12 relative">
+            <div class="absolute top-0 bottom-0 left-1/2 transform -translate-x-1/2 flex flex-col items-center justify-center">
+              <!-- Top connector line -->
+              <div *ngIf="getConnectorClass(log, i) !== 'connector-start'" 
+                [ngClass]="getCorrelationColor(log.correlationId)"
+                class="w-0.5 flex-1"></div>
+              <!-- Dot -->
+              <div [ngClass]="getCorrelationColor(log.correlationId)" 
+                class="w-2.5 h-2.5 rounded-full z-10 flex-shrink-0"></div>
+              <!-- Bottom connector line -->
+              <div *ngIf="getConnectorClass(log, i) !== 'connector-end'" 
+                [ngClass]="getCorrelationColor(log.correlationId)"
+                class="w-0.5 flex-1"></div>
+            </div>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Empty state -->
+  <div *ngIf="filteredLogs.length === 0 && searchTerm" class="text-center py-8 text-gray-400">
+    <p>No logs found matching "{{ searchTerm }}"</p>
+  </div>
+
+  <!-- Pagination Controls -->
+  <div class="flex justify-between items-center mt-6">
+    <button 
+      (click)="previousPage()"
+      [disabled]="currentPage === 1"
+      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg transition font-medium">
+      ← Previous
+    </button>
+
+    <div class="text-gray-400">
+      Page <span class="text-white font-semibold">{{ currentPage }}</span> of <span class="text-white font-semibold">{{ totalPages }}</span>
+    </div>
+
+    <button 
+      (click)="nextPage()"
+      [disabled]="currentPage === totalPages"
+      class="px-4 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-gray-700 disabled:cursor-not-allowed text-white rounded-lg transition font-medium">
+      Next →
+    </button>
+  </div>
+
+  <!-- Page Size Info -->
+  <div class="text-xs text-gray-500 text-center mt-4">
+    Page size: {{ pageSize }} entries per page
+  </div>
+
+  <!-- SQL Modal -->
+  <div *ngIf="showSqlModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+    <div class="bg-gray-800 rounded-lg border border-gray-700 max-w-2xl max-h-96 overflow-y-auto">
+      <div class="flex justify-between items-center p-6 border-b border-gray-700">
+        <h3 class="text-white font-semibold">Complete SQL</h3>
+        <button 
+          (click)="closeSqlModal()"
+          class="text-gray-400 hover:text-white text-2xl leading-none">×</button>
+      </div>
+      <div class="p-6">
+        <pre class="bg-gray-900 p-4 rounded text-xs text-gray-300 overflow-x-auto break-words whitespace-pre-wrap">{{ selectedSql }}</pre>
+      </div>
+      <div class="flex justify-end gap-2 p-6 border-t border-gray-700">
+        <button 
+          (click)="closeSqlModal()"
+          class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,27 @@
+{"timestamp":"2026-01-15T08:15:30Z","level":"INFO","message":"Application started","userId":"user123","duration":156}
+{"timestamp":"2026-01-15T08:45:12Z","level":"INFO","message":"User login successful","userId":"user456","ip":"192.168.1.1"}
+{"timestamp":"2026-01-15T09:12:45Z","level":"ERROR","message":"Database connection timeout","error":"ECONNREFUSED","code":5000}
+{"timestamp":"2026-01-15T09:15:20Z","level":"WARN","message":"Memory usage above 80%","memory_percent":82.5}
+{"timestamp":"2026-01-15T09:45:10Z","level":"INFO","message":"Cache cleared","items_deleted":1500}
+{"timestamp":"2026-01-15T10:05:33Z","level":"INFO","message":"API request processed","method":"GET","path":"/api/users","status":200}
+{"timestamp":"2026-01-15T10:30:45Z","level":"INFO","message":"File uploaded","filename":"document.pdf","size":2048576}
+{"timestamp":"2026-01-15T10:45:15Z","level":"WARN","message":"Slow query detected","query_time_ms":3500,"query":"SELECT * FROM users WHERE active=1"}
+{"timestamp":"2026-01-15T11:15:22Z","level":"INFO","message":"Background job started","job_id":"job_001"}
+{"timestamp":"2026-01-15T11:45:30Z","level":"INFO","message":"Background job completed","job_id":"job_001","duration_ms":1800000}
+{"timestamp":"2026-01-15T12:15:10Z","level":"ERROR","message":"Payment processing failed","order_id":"ord_123","error":"Insufficient funds"}
+{"timestamp":"2026-01-15T12:45:20Z","level":"INFO","message":"Batch import started","total_records":5000}
+{"timestamp":"2026-01-15T13:15:45Z","level":"INFO","message":"Batch import completed","processed":5000,"success":4995,"failed":5}
+{"timestamp":"2026-01-15T13:45:10Z","level":"INFO","message":"Report generated","report_type":"monthly","lines":15000}
+{"timestamp":"2026-01-15T14:15:30Z","level":"WARN","message":"API rate limit approaching","current":950,"limit":1000}
+{"timestamp":"2026-01-15T14:45:20Z","level":"INFO","message":"Email sent","recipient":"user@example.com","template":"confirmation"}
+{"timestamp":"2026-01-15T15:15:15Z","level":"INFO","message":"Configuration reloaded","changes":12}
+{"timestamp":"2026-01-15T15:45:40Z","level":"INFO","message":"Health check passed","response_time_ms":45}
+{"timestamp":"2026-01-15T16:15:25Z","level":"WARN","message":"Disk space warning","available_gb":5.2,"threshold_gb":10}
+{"timestamp":"2026-01-15T16:45:50Z","level":"INFO","message":"User session expired","userId":"user789","session_duration_minutes":120}
+{"timestamp":"2026-01-15T17:15:30Z","level":"INFO","message":"API request processed","method":"POST","path":"/api/orders","status":201}
+{"timestamp":"2026-01-15T17:45:15Z","level":"ERROR","message":"SSL certificate validation failed","host":"external.api.com"}
+{"timestamp":"2026-01-15T18:15:45Z","level":"INFO","message":"Scheduled task executed","task":"cleanup","items_removed":3000}
+{"timestamp":"2026-01-15T18:45:20Z","level":"WARN","message":"Connection pool exhausted","active_connections":100,"max_connections":100}
+{"timestamp":"2026-01-15T19:15:10Z","level":"INFO","message":"Webhook delivered","webhook_id":"wh_123","status":"success"}
+{"timestamp":"2026-01-15T19:45:35Z","level":"INFO","message":"Metrics exported","total_metrics":5000,"time_period":"hourly"}
+{"timestamp":"2026-01-15T20:15:20Z","level":"INFO","message":"Application heartbeat","uptime_hours":72,"cpu_percent":35,"memory_percent":45}
