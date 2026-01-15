@@ -1,12 +1,15 @@
 {
-  "name": "logson-app",
+  "name": "logson",
   "version": "1.0.0",
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "github-build": "ng build --configuration production --base-href '/logson/'",
+    "github-deploy": "npx angular-cli-ghpages --dir=dist/logson --no-silent"
+
   },
   "private": true,
   "dependencies": {
