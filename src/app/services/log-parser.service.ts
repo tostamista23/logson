@@ -48,7 +48,7 @@ export class LogParserService {
         const typeClass = this.getTypeStyles(type);
         const level = data.Level || 'Information';
         const levelClass = this.getLevelStyles(level);
-        const message = this.formatMessage(data.MessageTemplate, data.Properties);
+        const message = this.formatMessage(data.MessageTemplate || data.Message, data.Properties);
         
         let statusCode: number | undefined;
         let statusCodeClass: string | undefined;
