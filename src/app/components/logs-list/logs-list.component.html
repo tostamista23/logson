@@ -21,6 +21,36 @@
     </button>
   </div>
 
+  <!-- Level Filters -->
+  <div class="flex flex-wrap gap-2 mb-2">
+    <span class="text-xs text-gray-400 mr-2">Levels:</span>
+
+    <button
+      *ngFor="let level of availableLevels"
+      (click)="toggleLevel(level.id)"
+      class="px-3 py-1 rounded-full text-xs border transition"
+      [ngClass]="isLevelSelected(level.id)
+        ? level.class
+        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'">
+      {{ level.id }}
+    </button>
+  </div>
+
+  <!-- Type Filters -->
+  <div class="flex flex-wrap gap-2 mb-3">
+    <span class="text-xs text-gray-400 mr-2">Types:</span>
+
+    <button
+      *ngFor="let type of availableTypes"
+      (click)="toggleType(type.id)"
+      class="px-3 py-1 rounded-full text-xs border transition"
+      [ngClass]="isTypeSelected(type.id)
+        ? type.class
+        : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'">
+      {{ type.id }}
+    </button>
+  </div>
+
   <!-- Search Results Info -->
   <div *ngIf="searchTerm" class="text-sm text-gray-400 mb-2">
     Found {{ filteredLogs.length }} of {{ logs.length }} entries
@@ -50,9 +80,6 @@
           <td class="px-4 py-3 text-gray-300 font-mono text-xs whitespace-nowrap">
             <div class="flex items-center gap-2">
               {{ log.formattedDate }}
-              <span *ngIf="isNewLog(log)" class="px-2 py-0.5 bg-green-600 text-white rounded text-xs font-bold whitespace-nowrap">
-                NEW
-              </span>
             </div>
           </td>
           <td class="px-4 py-3">

@@ -1,7 +1,7 @@
 import { Component, Input, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { LogEntry } from '../../services/log-parser.service';
+import { FilterItem, LogEntry } from '../../services/log-parser.service';
 import { SafeHtml } from '@angular/platform-browser';
 
 @Component({
@@ -13,6 +13,11 @@ import { SafeHtml } from '@angular/platform-browser';
 export class LogsListComponent implements OnInit {
   @Input() logs: LogEntry[] = [];
   @Input() pageSize = 500;
+  @Input() availableLevels: FilterItem[] = [];
+  @Input() availableTypes: FilterItem[] = [];
+
+  selectedLevels: string[] = [];
+  selectedTypes: string[] = [];
 
   searchTerm = '';
   filteredLogs: LogEntry[] = [];
@@ -77,21 +82,29 @@ export class LogsListComponent implements OnInit {
   }
 
   private applyFilter() {
-    if (!this.searchTerm.trim()) {
-      this.filteredLogs = [...this.logs];
-      return;
-    }
+    const searchLower = this.searchTerm.trim().toLowerCase();
 
-    const searchLower = this.searchTerm.toLowerCase();
-    this.filteredLogs = this.logs.filter(log => 
-      log.message.toLowerCase().includes(searchLower) ||
-      log.type.toLowerCase().includes(searchLower) ||
-      log.level.toLowerCase().includes(searchLower) ||
-      log.formattedDate.toLowerCase().includes(searchLower) ||
-      (log.statusCode && log.statusCode.toString().includes(searchLower)) ||
-      (log.httpMethod && log.httpMethod.toLowerCase().includes(searchLower)) ||
-      (log.correlationId && log.correlationId.toLowerCase().includes(searchLower))
-    );
+    this.filteredLogs = this.logs.filter(log => {
+      // Filtro por search term
+      const matchesSearch =
+        !searchLower ||
+        log.message?.toLowerCase().includes(searchLower) ||
+        log.formattedDate?.toLowerCase().includes(searchLower) ||
+        (log.statusCode && log.statusCode.toString().includes(searchLower)) ||
+        (log.httpMethod && log.httpMethod.toLowerCase().includes(searchLower)) ||
+        (log.correlationId && log.correlationId.toLowerCase().includes(searchLower));
+
+      // Filtro por levels (multi-select)
+      const matchesLevel =
+        this.selectedLevels.length === 0 || this.selectedLevels.includes(log.level);
+
+      // Filtro por types (multi-select)
+      const matchesType =
+        this.selectedTypes.length === 0 || this.selectedTypes.includes(log.type);
+
+      // Retorna apenas logs que passam todos os filtros
+      return matchesSearch && matchesLevel && matchesType;
+    });
   }
 
   nextPage() {
@@ -194,5 +207,39 @@ export class LogsListComponent implements OnInit {
   closeSqlModal() {
     this.showSqlModal = false;
     this.selectedSql = '';
+  }
+
+  
+  isLevelSelected(level: string): boolean {
+    return this.selectedLevels.includes(level);
+  }
+
+  isTypeSelected(type: string): boolean {
+    return this.selectedTypes.includes(type);
+  }
+
+  toggleLevel(level: string) {
+    const index = this.selectedLevels.indexOf(level);
+    if (index >= 0) {
+      this.selectedLevels.splice(index, 1);
+    } else {
+      this.selectedLevels.push(level);
+    }
+
+    this.applyFilter()
+    this.updatePagination();
+
+  }
+
+  toggleType(type: string) {
+    const index = this.selectedTypes.indexOf(type);
+    if (index >= 0) {
+      this.selectedTypes.splice(index, 1);
+    } else {
+      this.selectedTypes.push(type);
+    }
+
+    this.applyFilter()
+    this.updatePagination();
   }
 }

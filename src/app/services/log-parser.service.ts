@@ -26,6 +26,11 @@ export interface LogStatistics {
   entriesByHour: { [key: number]: number };
 }
 
+export interface FilterItem {
+  id: string;
+  class: string;
+}
+
 @Injectable({
   providedIn: 'root'
 })
@@ -38,8 +43,19 @@ export class LogParserService {
     for (const line of lines) {
       if (!line.trim()) continue;
 
+      let data: any;
+
       try {
-        const data = JSON.parse(line);
+        try {
+          // tenta JSON normal
+          data = JSON.parse(line);
+        } catch (e) {
+          // fallback: converte texto para JSON
+          data = this.parseTextLogLine(line);
+
+          if (!data)
+            continue; // linha inválida
+        }
         const timestamp = data.Timestamp || data.timestamp || new Date().toISOString();
         const date = new Date(timestamp);
         const hour = date.getHours();
@@ -50,6 +66,7 @@ export class LogParserService {
         const levelClass = this.getLevelStyles(level);
         const message = this.formatMessage(data.MessageTemplate || data.Message, data.Properties);
         
+
         let statusCode: number | undefined;
         let statusCodeClass: string | undefined;
         let httpMethod: string | undefined;
@@ -170,6 +187,8 @@ export class LogParserService {
     
     return 'Log';
   }
+
+  
 
   private formatDate(timestamp: string): string {
     try {
@@ -341,5 +360,75 @@ export class LogParserService {
     }
     
     return summary;
+  }
+
+
+
+
+
+  private parseTextLogLine(line: string): any | null {
+    // Exemplo:
+    // 2026-01-20 09:54:15.474 +00:00 [WRN] Message...
+
+    const regex = /^(\d{4}-\d{2}-\d{2})\s+(\d{2}:\d{2}:\d{2}\.\d+)\s+([+-]\d{2}:\d{2})\s+\[?(\w+)\]?\s+([\s\S]*)$/;
+    const match = line.match(regex);
+
+    if (!match) return null;
+
+    const [, date, time, offset, level, message] = match;
+
+    const timestamp = `${date}T${time}${offset}`;
+
+    let sourceContext = this.getSourceContext(message);
+    return {
+      Timestamp: timestamp,
+      Level: this.mapLogLevel(level),
+      SourceContext: sourceContext,
+      Message: message,
+      Properties: { 
+        StatusCode: sourceContext == "AspNetCore.Routing" ? this.extractHttpStatus(message) : undefined,
+        Method: this.extractHttpMethod(message)
+      },
+    };
+  }
+
+  extractHttpStatus(line: string): number | null {
+    // Regex: procura - <código> - 
+    // Ex: "- 400 -" ou "- 200 -"
+    const match = line.match(/-\s*(\d{3})\s*-/);
+    if (match) {
+      const code = parseInt(match[1], 10);
+      if (code >= 200 && code <= 500) {
+        return code;
+      }
+    }
+    return null;
+  }
+
+  extractHttpMethod(line: string): string | null {
+    const methodMatch = line.match(/\b(GET|POST|PUT|DELETE|PATCH|OPTIONS|HEAD)\b/);
+    if (methodMatch) {
+      return methodMatch[1];
+    }
+    return null;
+  }
+
+
+  getSourceContext(message: string): string {
+    return message.startsWith('Executed DbCommand') ? 'EntityFrameworkCore.Database' : 
+      message.startsWith('Request starting') ? 'AspNetCore.Routing' :
+      message.startsWith('Request finished') ? 'AspNetCore.Routing' :
+      message.startsWith('Executing endpoint') ? 'AspNetCore.Routing' : "";
+  }
+
+  private mapLogLevel(level: string): string {
+    switch (level) {
+      case 'WRN': return 'Warning';
+      case 'ERR': return 'Error';
+      case 'INF': return 'Information';
+      case 'DBG': return 'Debug';
+      case 'FTL': return 'Fatal';
+      default: return level;
+    }
   }
 }

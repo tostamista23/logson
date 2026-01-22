@@ -4,7 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { FileUploadComponent } from './components/file-upload/file-upload.component';
 import { BarChartComponent } from './components/bar-chart/bar-chart.component';
 import { LogsListComponent } from './components/logs-list/logs-list.component';
-import { LogParserService, LogEntry, LogStatistics } from './services/log-parser.service';
+import { LogParserService, LogEntry, LogStatistics, FilterItem } from './services/log-parser.service';
 
 @Component({
   selector: 'app-root',
@@ -68,7 +68,7 @@ import { LogParserService, LogEntry, LogStatistics } from './services/log-parser
                 TODO: Refresh Logs
               </button>
             </div>
-            <app-logs-list [logs]="logs" [pageSize]="pageSize"></app-logs-list>
+            <app-logs-list [logs]="logs" [availableLevels]="availableLevels" [availableTypes]="availableTypes" [pageSize]="pageSize"></app-logs-list>
           </div>
         </div>
 
@@ -88,10 +88,37 @@ export class AppComponent {
   peakHour = 0;
   peakEntries = 0;
 
+  availableLevels: FilterItem[] = [];
+  availableTypes: FilterItem[] = [];
+
   constructor(private logParser: LogParserService) {}
 
   onFileLoaded(content: string) {
     this.logs = this.logParser.parseLogFile(content);
+
+    const levelMap = new Map<string, string>();
+    const typeMap = new Map<string, string>();
+
+    for (const log of this.logs) {
+      if (log.level && !levelMap.has(log.level)) {
+        levelMap.set(log.level, log.levelClass || 'bg-gray-800 text-gray-300 border-gray-700');
+      }
+
+      if (log.type && !typeMap.has(log.type)) {
+        typeMap.set(log.type, log.typeClass || 'bg-gray-800 text-gray-300 border-gray-700');
+      }
+    }
+
+    this.availableLevels = Array.from(levelMap.entries()).map(([id, cls]) => ({
+      id,
+      class: cls
+    }))
+
+    this.availableTypes = Array.from(typeMap.entries()).map(([id, cls]) => ({
+      id,
+      class: cls
+    }))
+
     this.updateStatistics();
   }
 
