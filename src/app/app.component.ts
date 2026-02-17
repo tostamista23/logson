@@ -27,6 +27,8 @@ export class AppComponent {
   pageSize = 500;
   peakHour = 0;
   peakEntries = 0;
+  isLoading = true;
+  loadingProgress = 0;
 
   availableLevels: FilterItem[] = [];
   availableTypes: FilterItem[] = [];
@@ -34,32 +36,51 @@ export class AppComponent {
   constructor(private logParser: LogParserService, private router: Router) {}
 
   onFileLoaded(content: string) {
-    this.logs = this.logParser.parseLogFile(content);
+    console.log('Starting file parse...');
+    this.isLoading = true;
+    this.loadingProgress = 0;
 
-    const levelMap = new Map<string, string>();
-    const typeMap = new Map<string, string>();
+    this.logParser.parseLogFile(content).subscribe({
+      next: (progress) => {
+        console.log('Parse progress:', progress.processed, 'of', progress.total, 'logs:', progress.logs.length);
+        this.logs = progress.logs;
+        this.loadingProgress = progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
 
-    for (const log of this.logs) {
-      if (log.level && !levelMap.has(log.level)) {
-        levelMap.set(log.level, log.levelClass || 'bg-gray-800 text-gray-300 border-gray-700');
+        // Update available filters as logs come in
+        const levelMap = new Map<string, string>();
+        const typeMap = new Map<string, string>();
+
+        for (const log of this.logs) {
+          if (log.level && !levelMap.has(log.level)) {
+            levelMap.set(log.level, log.levelClass || 'bg-gray-800 text-gray-300 border-gray-700');
+          }
+
+          if (log.type && !typeMap.has(log.type)) {
+            typeMap.set(log.type, log.typeClass || 'bg-gray-800 text-gray-300 border-gray-700');
+          }
+        }
+
+        this.availableLevels = Array.from(levelMap.entries()).map(([id, cls]) => ({
+          id,
+          class: cls
+        }));
+
+        this.availableTypes = Array.from(typeMap.entries()).map(([id, cls]) => ({
+          id,
+          class: cls
+        }));
+
+        this.updateStatistics();
+      },
+      error: (err) => {
+        console.error('Error parsing logs:', err);
+        this.isLoading = false;
+      },
+      complete: () => {
+        console.log('Parse complete!');
+        this.isLoading = false;
       }
-
-      if (log.type && !typeMap.has(log.type)) {
-        typeMap.set(log.type, log.typeClass || 'bg-gray-800 text-gray-300 border-gray-700');
-      }
-    }
-
-    this.availableLevels = Array.from(levelMap.entries()).map(([id, cls]) => ({
-      id,
-      class: cls
-    }))
-
-    this.availableTypes = Array.from(typeMap.entries()).map(([id, cls]) => ({
-      id,
-      class: cls
-    }))
-
-    this.updateStatistics();
+    });
   }
 
   onFileRemoved() {

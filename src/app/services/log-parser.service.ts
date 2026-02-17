@@ -1,4 +1,5 @@
 import { Injectable } from '@angular/core';
+import { BehaviorSubject, Observable } from 'rxjs';
 
 export interface LogEntry {
   timestamp: string;
@@ -31,31 +32,147 @@ export interface FilterItem {
   class: string;
 }
 
+interface ParsingProgress {
+  processed: number;
+  total: number;
+  logs: LogEntry[];
+}
+
 @Injectable({
   providedIn: 'root'
 })
 export class LogParserService {
+  private worker: Worker | null = null;
+  private parsingProgress$ = new BehaviorSubject<ParsingProgress>({ processed: 0, total: 0, logs: [] });
+  private dateCache = new Map<string, string>();
+  private readonly CHUNK_SIZE = 5000; // Process 5000 lines at a time
+  private readonly DATE_CACHE_MAX = 10000; // Max cached dates
 
-  parseLogFile(content: string): LogEntry[] {
+  // Style caches - static maps for O(1) lookup
+  private readonly TYPE_STYLES_MAP = new Map<string, string>([
+    ['Database', 'bg-blue-900 text-blue-200 border border-blue-700'],
+    ['HTTP', 'bg-green-900 text-green-200 border border-green-700'],
+    ['Error', 'bg-red-900 text-red-200 border border-red-700'],
+    ['Warning', 'bg-yellow-900 text-yellow-200 border border-yellow-700'],
+    ['ORM', 'bg-purple-900 text-purple-200 border border-purple-700'],
+    ['Migration', 'bg-indigo-900 text-indigo-200 border border-indigo-700'],
+    ['App', 'bg-cyan-900 text-cyan-200 border border-cyan-700'],
+    ['Security', 'bg-orange-900 text-orange-200 border border-orange-700'],
+    ['Validation', 'bg-pink-900 text-pink-200 border border-pink-700'],
+    ['Static', 'bg-gray-700 text-gray-200 border border-gray-600'],
+    ['Log', 'bg-gray-700 text-gray-200 border border-gray-600']
+  ]);
+
+  private readonly LEVEL_STYLES_MAP = new Map<string, string>([
+    ['Error', 'bg-red-900 text-red-200 border border-red-700'],
+    ['Warning', 'bg-yellow-900 text-yellow-200 border border-yellow-700'],
+    ['Information', 'bg-blue-900 text-blue-200 border border-blue-700'],
+    ['Debug', 'bg-gray-700 text-gray-300 border border-gray-600'],
+    ['Trace', 'bg-gray-700 text-gray-300 border border-gray-600'],
+    ['Critical', 'bg-red-900 text-red-200 border border-red-700']
+  ]);
+
+  private readonly HTTP_METHOD_STYLES_MAP = new Map<string, string>([
+    ['GET', 'bg-blue-900 text-blue-200 border border-blue-700'],
+    ['POST', 'bg-green-900 text-green-200 border border-green-700'],
+    ['PUT', 'bg-yellow-900 text-yellow-200 border border-yellow-700'],
+    ['PATCH', 'bg-purple-900 text-purple-200 border border-purple-700'],
+    ['DELETE', 'bg-red-900 text-red-200 border border-red-700'],
+    ['HEAD', 'bg-gray-700 text-gray-200 border border-gray-600'],
+    ['OPTIONS', 'bg-gray-700 text-gray-200 border border-gray-600']
+  ]);
+
+  constructor() {
+    this.initializeWorker();
+  }
+
+  private initializeWorker() {
+    if (typeof Worker !== 'undefined') {
+      try {
+        this.worker = new Worker(new URL('../workers/log-parser.worker', import.meta.url), { type: 'module' });
+        this.worker.onmessage = ({ data }) => {
+          this.parsingProgress$.next(data);
+        };
+      } catch (e) {
+        console.warn('WebWorker not supported, falling back to main thread parsing');
+        this.worker = null;
+      }
+    }
+  }
+
+  parseLogFile(content: string): Observable<ParsingProgress> {
+    if (this.worker) {
+      // Use WebWorker for parsing
+      return new Observable(observer => {
+        // Reset progress for new parse
+        this.parsingProgress$.next({ processed: 0, total: 0, logs: [] });
+
+        let completed = false;
+        let lastProgress: ParsingProgress | null = null;
+        
+        // Safety timeout - if no completion after 30s, force complete
+        const timeoutId = setTimeout(() => {
+          if (!completed && lastProgress) {
+            console.warn('Parse timeout - forcing completion');
+            completed = true;
+            observer.complete();
+            subscription.unsubscribe();
+          }
+        }, 30000);
+
+        const subscription = this.parsingProgress$.subscribe(progress => {
+          observer.next(progress);
+          lastProgress = progress;
+          // Complete when total > 0 and processed >= total
+          if (progress.total > 0 && progress.processed >= progress.total && !completed) {
+            completed = true;
+            clearTimeout(timeoutId);
+            observer.complete();
+            subscription.unsubscribe();
+          }
+        });
+
+        this.worker!.postMessage({
+          type: 'PARSE_LOG',
+          content,
+          chunkSize: this.CHUNK_SIZE
+        });
+
+        return () => {
+          clearTimeout(timeoutId);
+          subscription.unsubscribe();
+        };
+      });
+    } else {
+      // Fallback: parse in chunks on main thread
+      return new Observable(observer => {
+        setTimeout(() => {
+          const logs = this.parseLogFileChunked(content);
+          observer.next({ processed: logs.length, total: logs.length, logs });
+          observer.complete();
+        }, 0);
+      });
+    }
+  }
+
+  private parseLogFileChunked(content: string): LogEntry[] {
     const logs: LogEntry[] = [];
     const lines = content.split('\n');
+    const total = lines.length;
 
-    for (const line of lines) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
       if (!line.trim()) continue;
 
-      let data: any;
-
       try {
+        let data: any;
         try {
-          // tenta JSON normal
           data = JSON.parse(line);
         } catch (e) {
-          // fallback: converte texto para JSON
           data = this.parseTextLogLine(line);
-
-          if (!data)
-            continue; // linha inválida
+          if (!data) continue;
         }
+
         const timestamp = data.Timestamp || data.timestamp || new Date().toISOString();
         const date = new Date(timestamp);
         const hour = date.getHours();
@@ -65,33 +182,28 @@ export class LogParserService {
         const level = data.Level || 'Information';
         const levelClass = this.getLevelStyles(level);
         const message = this.formatMessage(data.MessageTemplate || data.Message, data.Properties);
-        
 
         let statusCode: number | undefined;
         let statusCodeClass: string | undefined;
         let httpMethod: string | undefined;
         let httpMethodClass: string | undefined;
-        
+
         const props = data.Properties || {};
-        
-        // Extract statusCode from any log type
+
         statusCode = props.StatusCode || undefined;
         if (statusCode) {
           statusCodeClass = this.getStatusCodeStyles(statusCode);
         }
-        
-        // Extract HTTP method only from HTTP logs
+
         if (type === 'HTTP') {
           httpMethod = props.Method || undefined;
           if (httpMethod) {
             httpMethodClass = this.getHttpMethodStyles(httpMethod);
           }
         }
-        
-        // Extract correlation ID (try multiple field names)
+
         const correlationId = props.RequestId || props.TraceId || props.CorrelationId || props.CorrelationIdentifier || undefined;
-        
-        // Extract and format SQL for Database logs
+
         let sql: string | undefined;
         let sqlFormatted: string | undefined;
         let requestPath: string | undefined;
@@ -123,12 +235,21 @@ export class LogParserService {
           sqlFormatted,
           requestPath
         });
+
+        // Report progress every chunk
+        if (i % this.CHUNK_SIZE === 0) {
+          this.parsingProgress$.next({ processed: i, total, logs });
+        }
       } catch (e) {
-        // Skip non-JSON lines
+        // Skip invalid lines
       }
     }
 
-    return logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    // Sort only once at the end
+    logs.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    this.parsingProgress$.next({ processed: total, total, logs });
+
+    return logs;
   }
 
   getStatistics(logs: LogEntry[]): LogStatistics {
@@ -191,9 +312,14 @@ export class LogParserService {
   
 
   private formatDate(timestamp: string): string {
+    // Check cache first
+    if (this.dateCache.has(timestamp)) {
+      return this.dateCache.get(timestamp)!;
+    }
+
     try {
       const date = new Date(timestamp);
-      return date.toLocaleString('pt-PT', {
+      const formatted = date.toLocaleString('pt-PT', {
         year: 'numeric',
         month: '2-digit',
         day: '2-digit',
@@ -201,38 +327,24 @@ export class LogParserService {
         minute: '2-digit',
         second: '2-digit'
       });
+
+      // Cache the result
+      if (this.dateCache.size < this.DATE_CACHE_MAX) {
+        this.dateCache.set(timestamp, formatted);
+      }
+
+      return formatted;
     } catch {
       return timestamp;
     }
   }
 
   private getTypeStyles(type: string): string {
-    const styles: { [key: string]: string } = {
-      'Database': 'bg-blue-900 text-blue-200 border border-blue-700',
-      'HTTP': 'bg-green-900 text-green-200 border border-green-700',
-      'Error': 'bg-red-900 text-red-200 border border-red-700',
-      'Warning': 'bg-yellow-900 text-yellow-200 border border-yellow-700',
-      'ORM': 'bg-purple-900 text-purple-200 border border-purple-700',
-      'Migration': 'bg-indigo-900 text-indigo-200 border border-indigo-700',
-      'App': 'bg-cyan-900 text-cyan-200 border border-cyan-700',
-      'Security': 'bg-orange-900 text-orange-200 border border-orange-700',
-      'Validation': 'bg-pink-900 text-pink-200 border border-pink-700',
-      'Static': 'bg-gray-700 text-gray-200 border border-gray-600',
-      'Log': 'bg-gray-700 text-gray-200 border border-gray-600'
-    };
-    return styles[type] || styles['Log'];
+    return this.TYPE_STYLES_MAP.get(type) || this.TYPE_STYLES_MAP.get('Log') || '';
   }
 
   private getLevelStyles(level: string): string {
-    const styles: { [key: string]: string } = {
-      'Error': 'bg-red-900 text-red-200 border border-red-700',
-      'Warning': 'bg-yellow-900 text-yellow-200 border border-yellow-700',
-      'Information': 'bg-blue-900 text-blue-200 border border-blue-700',
-      'Debug': 'bg-gray-700 text-gray-300 border border-gray-600',
-      'Trace': 'bg-gray-700 text-gray-300 border border-gray-600',
-      'Critical': 'bg-red-900 text-red-200 border border-red-700'
-    };
-    return styles[level] || 'bg-gray-700 text-gray-200 border border-gray-600';
+    return this.LEVEL_STYLES_MAP.get(level) || 'bg-gray-700 text-gray-200 border border-gray-600';
   }
 
   private formatMessage(template: string | undefined, properties: any): string {
@@ -284,16 +396,7 @@ export class LogParserService {
 
   private getHttpMethodStyles(method: string): string {
     const methodUpper = method.toUpperCase();
-    const styles: { [key: string]: string } = {
-      'GET': 'bg-blue-900 text-blue-200 border border-blue-700',
-      'POST': 'bg-green-900 text-green-200 border border-green-700',
-      'PUT': 'bg-yellow-900 text-yellow-200 border border-yellow-700',
-      'PATCH': 'bg-purple-900 text-purple-200 border border-purple-700',
-      'DELETE': 'bg-red-900 text-red-200 border border-red-700',
-      'HEAD': 'bg-gray-700 text-gray-200 border border-gray-600',
-      'OPTIONS': 'bg-gray-700 text-gray-200 border border-gray-600'
-    };
-    return styles[methodUpper] || 'bg-gray-700 text-gray-200 border border-gray-600';
+    return this.HTTP_METHOD_STYLES_MAP.get(methodUpper) || 'bg-gray-700 text-gray-200 border border-gray-600';
   }
 
   private formatSql(sql: string): string {

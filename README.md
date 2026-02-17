@@ -44,7 +44,13 @@ npm start
 ## Developer notes
 
 - The frontend is an Angular standalone-components app (Angular 20).
-- Parsing is done on the main thread in `LogParserService`. For very large files consider moving parsing/filtering to a WebWorker.
+- **Performance optimizations:**
+  - **WebWorker**: Log parsing runs in a background thread to prevent UI blocking for large files
+  - **Chunking**: Large files are processed in 5000-line chunks with progress reporting
+  - **Style caching**: Type, level, and HTTP method styles use Map caches for O(1) lookup instead of object lookups
+  - **Date caching**: Formatted dates are cached (max 10,000 entries) to avoid repeated expensive toLocaleString() calls
+  - **Progressive rendering**: Logs and filters are updated as parsing progresses (visible in the progress bar)
+- For parsing fallback to main thread or very large files, consider increasing chunk size in `log-parser.service.ts`
 - Example log file: `examples/sample.log` (NDJSON).
 ## Project structure (important files)
 
