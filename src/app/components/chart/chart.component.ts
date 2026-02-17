@@ -15,6 +15,15 @@ export type ChartType = 'bar' | 'pie' | 'doughnut' | 'line';
   imports: [CommonModule],
   template: `
     <div class="w-full h-full flex items-center justify-center bg-gray-900 rounded-lg relative">
+      <!-- Loading overlay -->
+      <div *ngIf="isLoading" class="absolute inset-0 bg-gray-900/60 rounded-lg flex items-center justify-center z-10">
+        <div class="text-center">
+          <div class="inline-block">
+            <div class="w-12 h-12 border-4 border-gray-600 border-t-blue-500 rounded-full animate-spin"></div>
+          </div>
+          <p class="text-gray-400 text-sm mt-3">Loading chart...</p>
+        </div>
+      </div>
       <div *ngIf="!chartInitialized && (!data || !data.labels || data.labels.length === 0)" 
            class="text-gray-400 text-center p-4 absolute">
         <p>No data available</p>
@@ -25,7 +34,7 @@ export type ChartType = 'bar' | 'pie' | 'doughnut' | 'line';
         height="400"
         style="max-width: 100%; max-height: 100%; width: 100%; height: 100%;"></canvas>
     </div>
-  `,
+  `, 
   styles: [`
     :host {
       display: block;
@@ -48,6 +57,7 @@ export class ChartComponent implements OnInit, OnChanges, OnDestroy {
   @Input() chartType: ChartType = 'bar';
   @Input() title: string = '';
   @Input() hideLegend: boolean = false;
+  @Input() isLoading: boolean = false;
   @ViewChild('chartCanvas') canvasRef!: ElementRef<HTMLCanvasElement>;
 
   private chart: Chart | null = null;

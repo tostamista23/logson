@@ -103,12 +103,6 @@ export class AppComponent {
         // update numbers but postpone full redraw until parse complete
         this.updateStatistics(false);
 
-        // redraw chart every 5000 logs processed to show progress
-        if (progress.processed - this.lastProcessedUpdate >= 5000) {
-          this.updateChart();
-          this.lastProcessedUpdate = progress.processed;
-        }
-
         
       },
       error: (err) => {

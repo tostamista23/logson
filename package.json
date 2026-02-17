@@ -8,7 +8,7 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "github-build": "ng build --configuration production --base-href /logson/",
-    "github-deploy": "npx angular-cli-ghpages --dir=dist/logson --no-silent"
+    "github-deploy": "ng build --configuration production --base-href /logson/ && npx angular-cli-ghpages --dir=dist/logson --no-silent"
 
   },
   "private": true,
