@@ -10,9 +10,7 @@ Logson is a lightweight, browser-first viewer for JSON-structured logs (NDJSON /
 - Advanced filtering:
 	- Full-text search
 	- Regex filtering
-	- Date range filtering
 	- Level and type multi-select
-	- Save/restore filter presets (localStorage)
 - SQL summarisation for database logs
 - Visual indicators for correlation groups
 
@@ -38,16 +36,14 @@ npm start
 ## Usage
 
 - Use the search box for quick lookups by message, date, status code, HTTP method, or correlation id.
-- Use the advanced filters to enter a regex or limit logs by date range.
+- Use the regex filter for advanced pattern matching.
 - Toggle levels and types to further narrow results.
-- Save filters for later use via the Saved Filters UI.
 
 ## Developer notes
 
 - The frontend is an Angular standalone-components app (Angular 20).
 - Parsing is done on the main thread in `LogParserService`. For very large files consider moving parsing/filtering to a WebWorker.
 - Example log file: `examples/sample.log` (NDJSON).
-
 ## Project structure (important files)
 
 - `src/app/components/file-upload` - upload UI and drag/drop

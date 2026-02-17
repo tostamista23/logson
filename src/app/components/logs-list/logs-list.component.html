@@ -6,7 +6,14 @@
   </div>
 
   <!-- Search Bar -->
-  <div class="flex gap-3 mb-4">
+  <div class="flex gap-3 mb-4 items-center">
+    <input
+      [(ngModel)]="regexTerm"
+      (ngModelChange)="onAdvancedChange()"
+      type="text"
+      placeholder="Regex (e.g. userId=123)"
+      class="px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none transition w-64" />
+    
     <input 
       [(ngModel)]="searchTerm"
       (ngModelChange)="onSearchChange()"
@@ -15,44 +22,34 @@
       class="flex-1 px-4 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition">
     <button 
       *ngIf="searchTerm"
-      (click)="clearSearch()"
+      (click)="searchTerm=''; onSearchChange()"
       class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition">
       Clear
     </button>
   </div>
 
-  <!-- Advanced Filters -->
-  <div class="flex flex-wrap gap-3 mb-4 items-center">
-    <input
-      [(ngModel)]="regexTerm"
+  <!-- Time Filters -->
+  <div class="flex gap-3 mb-4 items-center">
+    <label class="text-xs text-gray-400 whitespace-nowrap">Time Range:</label>
+    <input 
+      [(ngModel)]="timeFrom"
       (ngModelChange)="onAdvancedChange()"
-      type="text"
-      placeholder="Regex (e.g. userId=123)"
-      class="px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none transition w-64" />
-
-    <div class="flex items-center gap-2">
-      <label class="text-xs text-gray-400">From</label>
-      <input type="date" [(ngModel)]="dateFrom" (ngModelChange)="onAdvancedChange()" class="px-2 py-1 bg-gray-900 border border-gray-700 rounded text-white" />
-    </div>
-
-    <div class="flex items-center gap-2">
-      <label class="text-xs text-gray-400">To</label>
-      <input type="date" [(ngModel)]="dateTo" (ngModelChange)="onAdvancedChange()" class="px-2 py-1 bg-gray-900 border border-gray-700 rounded text-white" />
-    </div>
-
-    <div class="ml-auto flex items-center gap-2">
-      <input #filterName type="text" placeholder="Saved filter name" class="px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white" />
-      <button (click)="saveCurrentFilter(filterName.value); filterName.value='';" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">Save</button>
-    </div>
-  </div>
-
-  <!-- Saved Filters -->
-  <div *ngIf="savedFilters.length > 0" class="flex gap-2 mb-4 items-center">
-    <span class="text-xs text-gray-400">Saved filters:</span>
-    <div class="flex gap-2 flex-wrap">
-      <button *ngFor="let f of savedFilters" (click)="applySavedFilter(f)" class="px-3 py-1 rounded bg-gray-800 text-white">{{ f.name }}</button>
-      <button *ngFor="let f of savedFilters" (click)="deleteSavedFilter(f.name)" class="px-2 py-1 bg-red-700 text-white rounded">×</button>
-    </div>
+      type="time"
+      placeholder="Start time"
+      class="px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition" />
+    <span class="text-gray-500">—</span>
+    <input 
+      [(ngModel)]="timeTo"
+      (ngModelChange)="onAdvancedChange()"
+      type="time"
+      placeholder="End time"
+      class="px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition" />
+    <button
+      *ngIf="timeFrom || timeTo"
+      (click)="clearTimeFilters()"
+      class="px-3 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition text-xs">
+      Clear
+    </button>
   </div>
 
   <!-- Level Filters -->
