@@ -1,0 +1,19 @@
+<div *ngIf="!fileName" class="bg-gray-800 rounded-lg p-6 border border-gray-700">
+  <label class="flex items-center justify-center w-full cursor-pointer">
+    <div class="flex flex-col items-center justify-center w-full border-2 border-dashed border-gray-600 rounded-lg p-6 hover:border-blue-500 transition"
+         (drop)="onFileDropped($event)" (dragover)="onDragOver($event)" (dragenter)="onDragEnter($event)" (dragleave)="onDragLeave($event)" (dragend)="onDragEnd()"
+         [ngClass]="{'border-blue-500 bg-gray-700 transform scale-105': isDragOver}">
+      <svg class="w-10 h-10 text-gray-400 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path>
+      </svg>
+      <p class="text-white font-semibold">Click to upload .log file</p>
+      <p class="text-gray-400 text-sm">or drag and drop</p>
+    </div>
+    <input 
+      #fileInput
+      type="file" 
+      accept=".log" 
+      (change)="onFileSelected($event)"
+      class="hidden" />
+  </label>
+</div>
