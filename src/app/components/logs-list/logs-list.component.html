@@ -21,6 +21,40 @@
     </button>
   </div>
 
+  <!-- Advanced Filters -->
+  <div class="flex flex-wrap gap-3 mb-4 items-center">
+    <input
+      [(ngModel)]="regexTerm"
+      (ngModelChange)="onAdvancedChange()"
+      type="text"
+      placeholder="Regex (e.g. userId=123)"
+      class="px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none transition w-64" />
+
+    <div class="flex items-center gap-2">
+      <label class="text-xs text-gray-400">From</label>
+      <input type="date" [(ngModel)]="dateFrom" (ngModelChange)="onAdvancedChange()" class="px-2 py-1 bg-gray-900 border border-gray-700 rounded text-white" />
+    </div>
+
+    <div class="flex items-center gap-2">
+      <label class="text-xs text-gray-400">To</label>
+      <input type="date" [(ngModel)]="dateTo" (ngModelChange)="onAdvancedChange()" class="px-2 py-1 bg-gray-900 border border-gray-700 rounded text-white" />
+    </div>
+
+    <div class="ml-auto flex items-center gap-2">
+      <input #filterName type="text" placeholder="Saved filter name" class="px-3 py-2 bg-gray-900 border border-gray-700 rounded text-white" />
+      <button (click)="saveCurrentFilter(filterName.value); filterName.value='';" class="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded">Save</button>
+    </div>
+  </div>
+
+  <!-- Saved Filters -->
+  <div *ngIf="savedFilters.length > 0" class="flex gap-2 mb-4 items-center">
+    <span class="text-xs text-gray-400">Saved filters:</span>
+    <div class="flex gap-2 flex-wrap">
+      <button *ngFor="let f of savedFilters" (click)="applySavedFilter(f)" class="px-3 py-1 rounded bg-gray-800 text-white">{{ f.name }}</button>
+      <button *ngFor="let f of savedFilters" (click)="deleteSavedFilter(f.name)" class="px-2 py-1 bg-red-700 text-white rounded">×</button>
+    </div>
+  </div>
+
   <!-- Level Filters -->
   <div class="flex flex-wrap gap-2 mb-2">
     <span class="text-xs text-gray-400 mr-2">Levels:</span>

@@ -20,6 +20,9 @@ export class LogsListComponent implements OnInit {
   selectedTypes: string[] = [];
 
   searchTerm = '';
+  regexTerm = '';
+  dateFrom: string | null = null;
+  dateTo: string | null = null;
   filteredLogs: LogEntry[] = [];
   currentPage = 1;
   totalPages = 1;
@@ -34,6 +37,11 @@ export class LogsListComponent implements OnInit {
 
   private previousLogsCount = 0;
   private newLogIndices: Set<number> = new Set();
+  savedFilters: Array<{ name: string; state: any }> = [];
+
+  ngAfterViewInit() {
+    this.loadSavedFilters();
+  }
 
   ngOnInit() {
     this.previousLogsCount = this.logs.length;
@@ -76,6 +84,12 @@ export class LogsListComponent implements OnInit {
     this.updatePagination();
   }
 
+  onAdvancedChange() {
+    this.currentPage = 1;
+    this.applyFilter();
+    this.updatePagination();
+  }
+
   clearSearch() {
     this.searchTerm = '';
     this.onSearchChange();
@@ -83,6 +97,17 @@ export class LogsListComponent implements OnInit {
 
   private applyFilter() {
     const searchLower = this.searchTerm.trim().toLowerCase();
+    let regex: RegExp | null = null;
+    if (this.regexTerm) {
+      try {
+        regex = new RegExp(this.regexTerm, 'i');
+      } catch (e) {
+        regex = null;
+      }
+    }
+
+    const fromDate = this.dateFrom ? new Date(this.dateFrom) : null;
+    const toDate = this.dateTo ? new Date(this.dateTo) : null;
 
     this.filteredLogs = this.logs.filter(log => {
       // Filtro por search term
@@ -94,6 +119,18 @@ export class LogsListComponent implements OnInit {
         (log.httpMethod && log.httpMethod.toLowerCase().includes(searchLower)) ||
         (log.correlationId && log.correlationId.toLowerCase().includes(searchLower));
 
+      // Filtro por regex
+      const matchesRegex = !regex || regex.test(log.raw) || regex.test(log.message || '') || regex.test(log.formattedDate || '');
+
+      // Filtro por date range
+      let matchesDate = true;
+      if (fromDate) {
+        matchesDate = new Date(log.timestamp) >= fromDate;
+      }
+      if (matchesDate && toDate) {
+        matchesDate = new Date(log.timestamp) <= toDate;
+      }
+
       // Filtro por levels (multi-select)
       const matchesLevel =
         this.selectedLevels.length === 0 || this.selectedLevels.includes(log.level);
@@ -103,8 +140,48 @@ export class LogsListComponent implements OnInit {
         this.selectedTypes.length === 0 || this.selectedTypes.includes(log.type);
 
       // Retorna apenas logs que passam todos os filtros
-      return matchesSearch && matchesLevel && matchesType;
+      return matchesSearch && matchesLevel && matchesType && matchesRegex && matchesDate;
     });
+  }
+
+  saveCurrentFilter(name: string) {
+    if (!name) return;
+    const state = {
+      searchTerm: this.searchTerm,
+      regexTerm: this.regexTerm,
+      dateFrom: this.dateFrom,
+      dateTo: this.dateTo,
+      selectedLevels: this.selectedLevels,
+      selectedTypes: this.selectedTypes
+    };
+    this.savedFilters = this.savedFilters.filter(f => f.name !== name);
+    this.savedFilters.push({ name, state });
+    localStorage.setItem('logson:savedFilters', JSON.stringify(this.savedFilters));
+  }
+
+  loadSavedFilters() {
+    try {
+      const raw = localStorage.getItem('logson:savedFilters');
+      if (raw) this.savedFilters = JSON.parse(raw);
+    } catch (e) {
+      this.savedFilters = [];
+    }
+  }
+
+  applySavedFilter(filter: { name: string; state: any }) {
+    const s = filter.state;
+    this.searchTerm = s.searchTerm || '';
+    this.regexTerm = s.regexTerm || '';
+    this.dateFrom = s.dateFrom || null;
+    this.dateTo = s.dateTo || null;
+    this.selectedLevels = s.selectedLevels || [];
+    this.selectedTypes = s.selectedTypes || [];
+    this.onAdvancedChange();
+  }
+
+  deleteSavedFilter(name: string) {
+    this.savedFilters = this.savedFilters.filter(f => f.name !== name);
+    localStorage.setItem('logson:savedFilters', JSON.stringify(this.savedFilters));
   }
 
   nextPage() {
