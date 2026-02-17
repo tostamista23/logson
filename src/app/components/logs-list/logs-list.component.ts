@@ -8,7 +8,8 @@ import { SafeHtml } from '@angular/platform-browser';
   selector: 'app-logs-list',
   standalone: true,
   imports: [CommonModule, FormsModule],
-  templateUrl: './logs-list.component.html'
+  templateUrl: './logs-list.component.html',
+  styleUrls: ['./logs-list.component.css']
 })
 export class LogsListComponent implements OnInit {
   @Input() logs: LogEntry[] = [];

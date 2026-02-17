@@ -3,9 +3,12 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { Router } from '@angular/router';
 import { FileUploadComponent } from './components/file-upload/file-upload.component';
-import { BarChartComponent } from './components/bar-chart/bar-chart.component';
 import { LogsListComponent } from './components/logs-list/logs-list.component';
+import { ChartComponent, ChartType } from './components/chart/chart.component';
 import { LogParserService, LogEntry, LogStatistics, FilterItem } from './services/log-parser.service';
+import { ChartStatsService, ChartData } from './services/chart-stats.service';
+
+type ChartTab = 'hourly' | 'types';
 
 @Component({
   selector: 'app-root',
@@ -14,8 +17,8 @@ import { LogParserService, LogEntry, LogStatistics, FilterItem } from './service
     CommonModule,
     FormsModule,
     FileUploadComponent,
-    BarChartComponent,
-    LogsListComponent
+    LogsListComponent,
+    ChartComponent
   ],
   templateUrl: './app.component.html',
   styleUrls: ['./app.component.css']
@@ -27,58 +30,94 @@ export class AppComponent {
   pageSize = 500;
   peakHour = 0;
   peakEntries = 0;
-  isLoading = true;
+  isLoading = false;
   loadingProgress = 0;
+
+  // used to limit how often we redraw the chart while parsing
+  private lastChartProgress = 0;
+  private lastProcessedUpdate = 0; // track log count for periodic redraw
 
   availableLevels: FilterItem[] = [];
   availableTypes: FilterItem[] = [];
 
-  constructor(private logParser: LogParserService, private router: Router) {}
+  // show hourly bar chart by default
+  selectedChartTab: ChartTab = 'hourly';
+  chartData: ChartData = {
+    labels: [],
+    datasets: []
+  };
+  chartType: ChartType = 'bar';
+
+  // hourly bar and types tabs
+  chartTabs: { id: ChartTab; label: string; type: ChartType }[] = [
+    { id: 'hourly', label: 'Entries by Hour', type: 'bar' },
+    { id: 'types', label: 'Log Types', type: 'doughnut' }
+  ];
+
+  constructor(private logParser: LogParserService, private chartStats: ChartStatsService, private router: Router) {}
 
   onFileLoaded(content: string) {
-    console.log('Starting file parse...');
     this.isLoading = true;
     this.loadingProgress = 0;
+    this.lastChartProgress = 0; // allow first live update
 
     this.logParser.parseLogFile(content).subscribe({
       next: (progress) => {
-        console.log('Parse progress:', progress.processed, 'of', progress.total, 'logs:', progress.logs.length);
         this.logs = progress.logs;
         this.loadingProgress = progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
 
         // Update available filters as logs come in
-        const levelMap = new Map<string, string>();
-        const typeMap = new Map<string, string>();
+        const levelMap = new Map<string, { class: string; count: number }>();
+        const typeMap = new Map<string, { class: string; count: number }>();
 
         for (const log of this.logs) {
           if (log.level && !levelMap.has(log.level)) {
-            levelMap.set(log.level, log.levelClass || 'bg-gray-800 text-gray-300 border-gray-700');
+            levelMap.set(log.level, { class: log.levelClass || 'bg-gray-800 text-gray-300 border-gray-700', count: 0 });
+          }
+          if (log.level) {
+            const levelEntry = levelMap.get(log.level)!;
+            levelEntry.count++;
           }
 
           if (log.type && !typeMap.has(log.type)) {
-            typeMap.set(log.type, log.typeClass || 'bg-gray-800 text-gray-300 border-gray-700');
+            typeMap.set(log.type, { class: log.typeClass || 'bg-gray-800 text-gray-300 border-gray-700', count: 0 });
+          }
+          if (log.type) {
+            const typeEntry = typeMap.get(log.type)!;
+            typeEntry.count++;
           }
         }
 
-        this.availableLevels = Array.from(levelMap.entries()).map(([id, cls]) => ({
+        this.availableLevels = Array.from(levelMap.entries()).map(([id, data]) => ({
           id,
-          class: cls
+          class: data.class,
+          count: data.count
         }));
 
-        this.availableTypes = Array.from(typeMap.entries()).map(([id, cls]) => ({
+        this.availableTypes = Array.from(typeMap.entries()).map(([id, data]) => ({
           id,
-          class: cls
+          class: data.class,
+          count: data.count
         }));
 
-        this.updateStatistics();
+        // update numbers but postpone full redraw until parse complete
+        this.updateStatistics(false);
+
+        // redraw chart every 5000 logs processed to show progress
+        if (progress.processed - this.lastProcessedUpdate >= 5000) {
+          this.updateChart();
+          this.lastProcessedUpdate = progress.processed;
+        }
+
+        
       },
       error: (err) => {
-        console.error('Error parsing logs:', err);
         this.isLoading = false;
       },
       complete: () => {
-        console.log('Parse complete!');
         this.isLoading = false;
+        // now that parsing finished, compute stats/chart one last time
+        this.updateStatistics(true);
       }
     });
   }
@@ -93,6 +132,7 @@ export class AppComponent {
   refreshLogs() {
     // Refresh is handled by re-parsing the logs already loaded
     this.updateStatistics();
+    this.updateChart();
   }
 
   resetAndAskFile() {
@@ -102,6 +142,7 @@ export class AppComponent {
     this.peakEntries = 0;
     this.availableLevels = [];
     this.availableTypes = [];
+    this.chartData = { labels: [], datasets: [] };
     try {
       this.fileUpload?.removeFile();
       this.fileUpload?.openFileDialog();
@@ -110,10 +151,48 @@ export class AppComponent {
     }
   }
 
-  private updateStatistics() {
+  selectChartTab(tab: ChartTab) {
+    this.selectedChartTab = tab;
+    const selectedTab = this.chartTabs.find(t => t.id === tab);
+    if (selectedTab) {
+      this.chartType = selectedTab.type;
+    }
+    this.updateChart();
+  }
+
+  private updateChart() {
+    if (this.logs.length === 0) return;
+
+    switch (this.selectedChartTab) {
+      case 'hourly':
+        const hourlyLabels = Array.from({ length: 24 }, (_, i) => `${String(i).padStart(2, '0')}:00`);
+        const hourlyData = hourlyLabels.map((_, i) => this.stats.entriesByHour[i] || 0);
+        this.chartData = {
+          labels: hourlyLabels,
+          datasets: [{
+            label: 'Logs by Hour',
+            data: hourlyData,
+            backgroundColor: '#3b82f6',
+            borderColor: '#3b82f6',
+            borderWidth: 1
+          }]
+        };
+        break;
+      case 'types':
+        this.chartData = this.chartStats.getTypeDistribution(this.logs);
+        break;
+    }
+  }
+
+  private updateStatistics(updateChart: boolean = true) {
     this.stats = this.logParser.getStatistics(this.logs);
     this.peakHour = this.getPeakHour();
     this.peakEntries = this.getPeakEntries();
+    if (updateChart) {
+      this.updateChart();
+      // extra call in case chart component hasn't picked up the change yet
+      setTimeout(() => this.updateChart(), 50);
+    }
   }
 
   private getPeakHour(): number {

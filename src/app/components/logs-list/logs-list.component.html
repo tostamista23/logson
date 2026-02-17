@@ -30,14 +30,14 @@
       (ngModelChange)="onAdvancedChange()"
       type="time"
       placeholder="Start time"
-      class="px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition" />
+      class="px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition time-input" />
     <span class="text-gray-500">—</span>
     <input 
       [(ngModel)]="timeTo"
       (ngModelChange)="onAdvancedChange()"
       type="time"
       placeholder="End time"
-      class="px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition" />
+      class="px-3 py-2 bg-gray-900 border border-gray-700 rounded-lg text-white placeholder-gray-500 focus:outline-none focus:border-blue-500 transition time-input" />
     <button
       *ngIf="timeFrom || timeTo"
       (click)="clearTimeFilters()"
@@ -53,11 +53,12 @@
     <button
       *ngFor="let level of availableLevels"
       (click)="toggleLevel(level.id)"
-      class="px-3 py-1 rounded-full text-xs border transition"
+      class="px-3 py-1 rounded-full text-xs border transition flex items-center gap-2"
       [ngClass]="isLevelSelected(level.id)
         ? level.class
         : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'">
-      {{ level.id }}
+      <span>{{ level.id }}</span>
+      <span class="bg-black bg-opacity-30 px-2 py-0.5 rounded-full text-xs font-semibold">{{ level.count }}</span>
     </button>
   </div>
 
@@ -68,11 +69,12 @@
     <button
       *ngFor="let type of availableTypes"
       (click)="toggleType(type.id)"
-      class="px-3 py-1 rounded-full text-xs border transition"
+      class="px-3 py-1 rounded-full text-xs border transition flex items-center gap-2"
       [ngClass]="isTypeSelected(type.id)
         ? type.class
         : 'bg-gray-800 border-gray-700 text-gray-300 hover:bg-gray-700'">
-      {{ type.id }}
+      <span>{{ type.id }}</span>
+      <span class="bg-black bg-opacity-30 px-2 py-0.5 rounded-full text-xs font-semibold">{{ type.count }}</span>
     </button>
   </div>
 

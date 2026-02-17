@@ -24,9 +24,23 @@
 
     <!-- Content -->
     <div *ngIf="logs.length > 0" class="space-y-8">
-      <!-- Chart with Statistics Section -->
+      <!-- Chart Selector and Statistics Section -->
       <div class="bg-gray-800 rounded-lg p-6 border border-gray-700">
-        <h2 class="text-xl font-bold text-white mb-6">Entries by Hour</h2>
+        <div class="flex items-center justify-between mb-6">
+          <h2 class="text-xl font-bold text-white">Analytics</h2>
+          <!-- Chart Tab Selector -->
+          <div class="flex gap-2 flex-wrap justify-end">
+            <button
+              *ngFor="let tab of chartTabs"
+              (click)="selectChartTab(tab.id)"
+              [class.bg-blue-600]="selectedChartTab === tab.id"
+              [class.bg-gray-700]="selectedChartTab !== tab.id"
+              class="px-3 py-1 rounded text-xs text-white hover:bg-blue-700 transition whitespace-nowrap">
+              {{ tab.label }}
+            </button>
+          </div>
+        </div>
+
         <div class="grid grid-cols-1 lg:grid-cols-4 gap-6">
           <!-- Statistics Sidebar -->
           <div class="space-y-4">
@@ -44,8 +58,8 @@
             </div>
           </div>
           <!-- Chart -->
-          <div class="lg:col-span-3">
-            <app-bar-chart [data]="stats.entriesByHour"></app-bar-chart>
+          <div class="lg:col-span-3 h-96 w-full">
+            <app-chart [data]="chartData" [chartType]="chartType" [hideLegend]="selectedChartTab==='hourly'"></app-chart>
           </div>
         </div>
       </div>

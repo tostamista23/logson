@@ -30,6 +30,7 @@ export interface LogStatistics {
 export interface FilterItem {
   id: string;
   class: string;
+  count: number;
 }
 
 interface ParsingProgress {
@@ -94,7 +95,6 @@ export class LogParserService {
           this.parsingProgress$.next(data);
         };
       } catch (e) {
-        console.warn('WebWorker not supported, falling back to main thread parsing');
         this.worker = null;
       }
     }
@@ -113,7 +113,6 @@ export class LogParserService {
         // Safety timeout - if no completion after 30s, force complete
         const timeoutId = setTimeout(() => {
           if (!completed && lastProgress) {
-            console.warn('Parse timeout - forcing completion');
             completed = true;
             observer.complete();
             subscription.unsubscribe();
