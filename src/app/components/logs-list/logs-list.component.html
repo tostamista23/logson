@@ -1,10 +1,4 @@
 <div class="space-y-4">
-  <!-- Update Notification -->
-  <div *ngIf="showUpdateNotification" class="bg-green-900 border border-green-700 rounded-lg p-4 text-green-200 flex items-center justify-between">
-    <span>✓ {{ newLogsCount }} new log{{ newLogsCount !== 1 ? 's' : '' }} detected!</span>
-    <button (click)="showUpdateNotification = false" class="text-green-300 hover:text-green-100">×</button>
-  </div>
-
   <!-- Search Bar -->
   <div class="flex gap-3 mb-4 items-center">
     <input

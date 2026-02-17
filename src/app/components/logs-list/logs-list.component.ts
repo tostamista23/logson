@@ -32,8 +32,6 @@ export class LogsListComponent implements OnInit {
   
   showSqlModal = false;
   selectedSql = '';
-  showUpdateNotification = false;
-  newLogsCount = 0;
 
   private previousLogsCount = 0;
   private newLogIndices: Set<number> = new Set();
@@ -49,18 +47,11 @@ export class LogsListComponent implements OnInit {
   ngOnChanges() {
     // Detect if new logs were added
     if (this.logs.length > this.previousLogsCount) {
-      this.newLogsCount = this.logs.length - this.previousLogsCount;
       
       // Mark the new logs
       for (let i = this.previousLogsCount; i < this.logs.length; i++) {
         this.newLogIndices.add(i);
       }
-      
-      this.showUpdateNotification = true;
-      // Auto-hide notification after 5 seconds
-      setTimeout(() => {
-        this.showUpdateNotification = false;
-      }, 5000);
     } else {
       // Clear new log markers if logs were removed or reloaded
       this.newLogIndices.clear();
