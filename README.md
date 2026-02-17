@@ -11,6 +11,7 @@ Logson is a lightweight, browser-first viewer for JSON-structured logs (NDJSON /
 	- Full-text search
 	- Regex filtering
 	- Level and type multi-select
+	- Time range filtering (start and end time)
 - SQL summarisation for database logs
 - Visual indicators for correlation groups
 
@@ -37,6 +38,7 @@ npm start
 
 - Use the search box for quick lookups by message, date, status code, HTTP method, or correlation id.
 - Use the regex filter for advanced pattern matching.
+- Use the time range filters to narrow by start and/or end time (HH:mm:ss format).
 - Toggle levels and types to further narrow results.
 
 ## Developer notes
